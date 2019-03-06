@@ -1,0 +1,22 @@
+version: '3.2'
+
+services:
+
+  db:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - type: volume
+        source: myDatabaseVolume
+        target: /var/lib/postgresql/data/pgdata
+
+  api:
+    image: aecc465da68d
+    ports:
+      - 80:80
+
+volumes:
+  myDatabaseVolume:
