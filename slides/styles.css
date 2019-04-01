@@ -1,0 +1,73 @@
+body {
+    font-family: 'Segoe UI';
+}
+h1, h2, h3 {
+    font-weight: 400;
+}
+    
+.titleSlide {
+    padding: 0px;
+}
+
+.header {
+    font-weight: bold;
+    height: 15%;
+    text-align: left;
+    vertical-align: middle;
+    background-image: url("logo.png");
+    background-repeat: no-repeat no-repeat;
+    background-position: 95% center;
+    background-size: auto 50%;
+}
+.header h1, .header h2,.header h3 {
+    margin-block-start: 0;
+    margin-block-end: 0;
+    margin-bottom: 0;
+    margin-left: 40px;
+    padding-top: 1.5%;
+    color: rgb(0, 0, 153);
+}
+
+.titleSlide .content {
+    padding: 80px;
+    height: 85%;
+    background-image: url("background.png");
+    color: white;
+    vertical-align: middle;
+}
+
+.titleSlide .content h1 {
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.titleSlide .remark-slide-number {
+    color: white;
+    display: none;
+}
+
+.contentSlide {
+    padding: 0px;
+}
+
+.contentSlide .content {
+    height: 85%;
+    padding-left: 40px;
+    padding-right: 40px;
+    color: rgb(87,87,87);
+}
+
+.contentSlide .remark-slide-number {
+    color: rgb(87,87,87);
+}
+
+.remark-inline-code {
+    color: #880000;
+}
+
+.reference {
+    margin-bottom: auto;
+    position: absolute;
+    left: 40px;
+    bottom: 40px;
+}

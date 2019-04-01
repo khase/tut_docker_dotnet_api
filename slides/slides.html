@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+  </head>
+  <body>
+     <textarea id="source">
+        layout: true
+        class: titleSlide
+        ---
+        .header[
+        ]
+
+        .content[
+        # Developing a dockerized .NET Core API
+
+        Jochen Grün | MHP
+        ]
+        ---
+        layout: true
+        class: contentSlide
+        ---
+        .header[
+        ## Motivation
+        ]
+        .content[
+        .center[
+            ![docker](assets/docker.png)
+            ![dotnetcore](assets/dotnetcore.png)
+            ![kubernetes](assets/kubernetes.png)
+        ]
+
+        - Microservice architecures demand the ability to quickly spin up small APIs
+        - .NET Core is becoming the main framework for creating APIs in .NET
+        - Containers are the future and a base component of cloud native architectures
+            - e.g. with kubernetes
+        - Docker is more or less the standard for distributing and running containers
+        
+        ]
+        ---
+        .header[
+        ## Goals for today
+        ]
+        .content[
+        .center[
+            ![setup](assets/setup.png)
+        ]
+        - Give an overview of how to start an API in .NET Core
+        - Show how to access data through the API
+        - Show how to build, publish and run a docker image for the API
+        - Show how to run your database with docker   
+        - Test the whole setup locally using postman
+        ]
+        ---
+        .header[
+        ## Prerequisites
+        ]
+        .content[
+        - Install a dotnet sdk (> 2.0)
+        - Install postman
+        - Install docker for windows or docker toolbox (depending on your windows version)
+        - Install Visual Studio Code
+        - Install pgAdmin (https://www.pgadmin.org/download/)
+        ]
+        ---
+        .header[
+        ## Create and run api
+        ]
+        .content[
+        - Create the API solution
+        ```powershell
+        dotnet new sln DockerDotnetApiTutorial
+        dotnet new web -n DockerDotnetApiTutorial.Api
+        dotnet sln list
+        dotnet sln add .\DockerDotnetApiTutorial.Api\DockerDotnetApiTutorial.Api.csproj
+        dotnet sln list
+        dotnet build
+        ```
+        - Run the API
+        ```powershell
+        dotnet run
+        ```
+        - See "Hello World!" in your browser
+        ]
+        ---
+        .header[
+        ## Configure first controller (remove static response)
+        ]
+        .content[
+        __Startup.cs:__
+        ```cs
+        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        {
+            if (env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+
+            app.UseMvcWithDefaultRoute();
+
+            // this was the original code, delete it
+            // app.Run(async (context) =>
+            // {
+            //     await context.Response.WriteAsync("Hello World!");
+            // });
+        }
+        ```
+        ]
+        ---
+        .header[
+        ## Configure first controller (add home controller)
+        ]
+        .content[
+        __Controllers/HomeController.cs:__
+        ```cs
+        using Microsoft.AspNetCore.Mvc;
+
+        public namespace DockerDotnetApiTutorial.Api.Controllers
+        {
+            public class HomeController: Controller 
+            {
+                public string Index()
+                {
+                    return "Hello World from API!";
+                }
+            }
+        }
+        ```
+        - Run the app with `dotnet run` and check that it returns your new greeting.
+        ]
+        ---
+        .header[
+        ## Dockerize your api (create dockerfile)
+        ]
+        .content[
+        __Dockerfile:__
+        ```dockerfile
+        FROM microsoft/dotnet:2.1-aspnetcore-runtime
+
+        COPY ./bin/Debug/netcoreapp2.1/publish /opt/coreapp/
+
+        WORKDIR /opt/coreapp/
+
+        ENTRYPOINT ["dotnet", "DockerDotnetApiTutorial.Api.dll"]
+        ```
+        ]
+        ---
+        .header[
+        ## Dockerize your api (build image)
+        ]
+        .content[
+        - Publish your app
+        ```powershell
+        dotnet publish
+        ```
+        - Build the docker image
+        ```powershell
+        docker build .
+        ```
+        - Retrieve image id from output
+        ]
+        ---
+        .header[
+        ## Dockerize your api (run image)
+        ]
+        .content[
+        - Start the docker container containing the api
+        ```powershell
+        docker run 368c3e6d3eea -p 80:80
+        ```
+        - See that no ports are published
+        ```powershell
+        docker ps
+        ```
+        - Correct the command
+        ```powershell
+        docker run -p 80:80 368c3e6d3eea
+        ```
+        - Get the ip of your docker host to access the api in the browser
+        ```powershell
+        docker-machine ip
+        ```
+        - Access your container in the browser. Usually its on http://192.168.99.100
+        ]
+        ---
+        .header[
+        ## Run a database for the API
+        ]
+        .content[
+        - Run a postgres image
+        ```powershell
+        docker run postgress
+        ```
+        - aaah, forgot the ports
+        ```powershell
+        docker run -p 5432:5432 postgres
+        ```
+        - Open pgadmin and access the database under 192.168.99.100:5432, user postgres/admin.
+        - Create some database `Test`.
+        ]
+        ---
+        .header[
+        ## Stop the database container
+        ]
+        .content[
+        - List all running containers
+        ```powershell
+        docker ps
+        ```
+        - Search and copy the id of the postgress database
+        ```powershell
+        docker stop d2e914fdc5a1
+        ```
+        - Check that the database is gone
+        ```powershell
+        docker ps
+        ```
+        ]
+        ---
+        .header[
+        ## Why we need docker volumes
+        ]
+        .content[
+        - Start the container again.
+        ```powershell
+        docker run -p 5432:5432 postgres
+        ```
+        - Check for your database in pgadmin. 
+            - Oh no, its gone!
+
+        __By befault docker containers do not have a persistent volume.__
+        ]
+
+        .reference[
+        _Details on how to configure the postgres image can be found on_ https://hub.docker.com/_/postgres
+        ]
+        ---
+        .header[
+        ## Storing the database on a volume
+        ]
+        .content[
+        - Create docker volume 
+        ```powershell
+        docker volume create myDatabaseVolume
+        docker volume ls
+        ```
+        - Run the postgres docker container with the folder being mounted as a volume.
+        ```powershell
+        docker run -p 5432:5432 --mount 'type=volume,source=myDatabaseVolume,target=/var/lib/postgresql/data/pgdata' -e PGDATA=/var/lib/postgresql/data/pgdata postgres
+        ```
+        - Create a database on your db server again.
+        - Stop and start the container and check that the database remained intact.
+        ]
+        ---
+        .header[
+        ## Installing entity framework
+        ]
+        .content[
+        - Add postgres sql with entity framework core to your project (use the same version as your asp net project is)
+        ```powershell
+        dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL -v 2.1.0
+        ```
+        ]
+        ---
+        .header[
+        ## Create a data model
+        ]
+        .content[
+        __Data/Person.cs:__
+        ```cs
+        namespace DockerDotnetApiTutorial.Api.Data
+        {
+            public class Person
+            {
+                public int Id { get; set; }
+
+                public string FirstName { get; set; }
+
+                public string LastName { get; set; }
+
+                public string Mobile { get; set; }
+
+                public string Email { get; set; }
+            }
+        }
+        ```
+        ]
+        ---
+        .header[
+        ## Create a data context class
+        ]
+        .content[
+        __Data/DbContext.cs:__
+        ```cs
+        using Microsoft.EntityFrameworkCore;
+
+        namespace DockerDotnetApiTutorial.Api.Data
+        {
+            public class MyDbContext: DbContext
+            {
+                public MyDbContext(DbContextOptions options): base(options)
+                {
+                    
+                }
+
+                protected override void OnModelCreating(ModelBuilder modelBuilder)
+                {
+                    modelBuilder.ForNpgsqlUseIdentityAlwaysColumns();
+                }
+
+                public DbSet<Person> Persons { get;set; }
+            }
+        }
+        ```
+        ]
+        ---
+        .header[
+        ## Add get method to controller
+        ]
+        .content[
+        __Controllers/HomeController.cs:__
+        ```cs
+        public class HomeController: Controller 
+        {
+            private readonly MyDbContext dbContext;
+
+            public HomeController(MyDbContext dbContext)
+            {
+                this.dbContext = dbContext;
+            }
+
+        *   public Person[] GetPersons()
+        *   {
+        *       return dbContext.Persons.ToArray();
+        *   }
+        }
+        ```
+        ]
+        ---
+        .header[
+        ## Configure EF in startup code
+        ]
+        .content[
+        __Startup.cs:__
+        ```cs
+        public void ConfigureServices(IServiceCollection services)
+        {
+            services.AddMvc();
+
+        *   var connectionString = "User ID=postgres;Password=admin;Host=192.168.99.100;Port=5432;Database=DockerDotnetApiTutorial;";
+        *   services.AddDbContext<MyDbContext>(o => o.UseNpgsql(connectionString));
+        }
+        ```
+        - Run the app and check the url https://localhost:5001/Home/GetPersons. 
+        - You will receive an error that the database does not exist.
+
+        .reference[
+        _If you have problems with connection strings: https://www.connectionstrings.com/_
+        ]
+        ]        
+        ---
+        .header[
+        ## Publish your database schema
+        ]
+        .content[
+        - Add a migration that contains your person class.
+        ```powershell
+        dotnet ef migrations add AddedPersons
+        ```
+        - Apply the migrations to the database
+        ```powershell
+        dotnet ef database update
+        ```
+        - Start your app again and check that you get an empty array.
+        ]
+        ---
+        .header[
+        ## Migrations explained
+        ]
+        .content[
+        TODO
+        ]
+        ---
+        .header[
+        ## Create person method
+        ]
+        .content[
+        - Update controller to contain method to add persons.
+        
+        __Controllers/HomeController.cs:__
+        ```cs
+        public class HomeController: Controller 
+        {
+            // ..
+
+        *   [HttpPost]
+        *   public Person PostPerson([FromBody]Person person)
+        *   {
+        *       dbContext.Persons.Add(person);
+        *
+        *       dbContext.SaveChanges();
+        *
+        *       return person;
+        *   }
+        }
+        ```
+        ]
+        ---
+        .header[
+        ## Test API with postman
+        ]
+        .content[
+        - Start postman and request https://localhost:5001/Home/GetPersons via GET.
+            - Check that you get an empty array.
+        - Use postman to POST a request to https://localhost:5001/Home/PostPerson with body containing a json like this:
+        ```json
+        {
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john.doe@mhp.com"
+        }
+        ```
+        - Check the person was created with postman through GET https://localhost:5001/Home/GetPersons.
+        ]
+        ---
+        .header[
+        ## Get your api running in docker
+        ]
+        .content[
+        - Publish your app to prepare docker build
+        ```powershell
+        dotnet publish
+        ```
+        - Build the docker image
+        ```powershell
+        docker build .
+        ```
+        - Run the image on port 80
+        ```powershell
+        docker run -p 80:80 <imageid>
+        ```
+        - Check with postman that you get the persons and be happy.
+        ]
+        ---
+        .header[
+        ## Label your image
+        ]
+        .content[
+        TODO
+        ]
+        ---
+        .header[
+        ## Unify docker build
+        ]
+        .content[
+        TODO: Describe publish and image build in one docker file
+        ]
+        ---
+        .header[
+        ## Dockerize your api (run image)
+        ]
+        .content[
+        ]
+        ---
+        .header[
+        ## Dockerize your api (run image)
+        ]
+        .content[
+        ]
+        ---
+        .header[
+        ## Dockerize your api (run image)
+        ]
+        .content[
+        ]
+        ---
+        .header[
+        ## Dockerize your api (run image)
+        ]
+        .content[
+        ]
+        ---
+        layout: true
+        class: titleSlide
+        ---
+        .header[
+        ]
+        .content[
+        ## Feedback
+        ]
+        ---
+        .header[
+        ]
+        .content[
+        ## Thank you for joining us today!
+        ]
+    </textarea>
+     <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+     <script>
+        var slideshow = remark.create({
+          ratio: '16:9',
+          slideNumberFormat: '%current%',
+          highlightLines: true,
+          highlightStyle: "default"
+        });
+     </script>
+  </body>
+</html>
